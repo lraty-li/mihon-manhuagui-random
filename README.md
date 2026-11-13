@@ -45,9 +45,29 @@ sdk.dir=D:/.sdk/android-sdk
 
 编译 APK 位于 `src/zh/manhuagui/build/outputs/apk/debug/`。
 
-注意：Debug APK 使用开发签名，不适合作为长期可升级的正式发行渠道。后续发布稳定版本应配置固定签名密钥，私钥不要提交到仓库。
+Debug APK 使用调试签名，只适合本地测试。**GitHub Actions 只在推送版本 Tag 时创建 Release**，不会因为推送 `main`、PR 或普通提交而执行编译。
 
-GitHub Actions 的 build workflow 仅用于构建验证并上传临时 Debug APK，不发布 Releases。
+### 发布流程
+
+先在本地完整测试对应的提交。发布前修改 `src/zh/manhuagui/build.gradle.kts` 中的 `versionCode`，确保版本标签与 `libVersion.versionCode` 一致，例如当前 `libVersion = "1.6"`、`versionCode = 1` 对应标签 `v1.6.1`。
+
+工作流 `.github/workflows/release.yml` 在收到版本 Tag 后：
+
+1. 验证 Git Tag 与 APK 版本一致。
+2. 使用仓库加密 Secrets 还原固定签名文件（完成后删除）。
+3. 执行 `assembleRelease` 编译、签名并验证 APK。
+4. 在 GitHub Releases 创建同名版本并上传正式 APK。
+
+在本地验证并提交后，发布示例：
+
+```powershell
+git tag v1.6.1
+git push origin v1.6.1
+```
+
+仓库需要 `SIGNING_KEYSTORE_BASE64`、`KEY_STORE_PASSWORD`、`KEY_PASSWORD` 和 `ALIAS` 四个 Secrets。私钥和密码不可提交到仓库。**签名私钥与密码必须额外离线备份**，丢失后新 APK 将无法覆盖相同包名但签名不同的旧 APK。
+
+首次从 Debug 测试版迁移到正式签名版时，因为签名不同，需要先备份必要数据并卸载独立测试插件；原版漫画柜是不同包名，不受影响。
 
 ## 定期同步上游（无 Pull Request）
 
